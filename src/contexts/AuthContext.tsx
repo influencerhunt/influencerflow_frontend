@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
 
 interface User {
   id: string
@@ -39,16 +40,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      console.log('🔍 Checking authentication...')
       const token = localStorage.getItem('token')
-      if (token) {
-        api.setAuthToken(token)
-        const userData = await api.getCurrentUser()
-        setUser(userData)
+      
+      if (!token) {
+        console.log('❌ No token found in localStorage')
+        setUser(null)
+        setLoading(false)
+        return
       }
+      
+      console.log('✅ Token found, verifying with backend...')
+      api.setAuthToken(token)
+      const userData = await api.getCurrentUser()
+      console.log('✅ User data received:', userData)
+      console.log('📝 Setting user state...')
+      
+      // Set user first, then loading to ensure proper state synchronization
+      setUser(userData)
+      console.log('✅ User state set complete')
+      setLoading(false)
+      console.log('✅ Loading set to false')
     } catch (error) {
-      console.error('Auth check failed:', error)
+      console.error('❌ Auth check failed:', error)
+      console.log('🧹 Clearing invalid token from localStorage')
       localStorage.removeItem('token')
-    } finally {
+      api.setAuthToken('')
+      setUser(null)
       setLoading(false)
     }
   }
@@ -73,11 +91,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithGoogle = async () => {
     try {
-      // Get Google OAuth URL from backend
-      const { url } = await api.getGoogleAuthUrl()
-      
-      // Redirect to Google OAuth
-      window.location.href = url
+      // Use Supabase client directly for OAuth (this handles PKCE properly)
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+      // The redirect will happen automatically
     } catch (error) {
       console.error('Google login failed:', error)
       throw error

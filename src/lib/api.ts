@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000'
+// Use Next.js API routes instead of calling FastAPI directly
+const BASE_URL = ''
 
 interface User {
   id: string
@@ -34,7 +35,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${BASE_URL}/api/v1`,
+      baseURL: `${BASE_URL}/api`,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -76,6 +77,13 @@ class ApiClient {
   async exchangeGoogleToken(accessToken: string): Promise<AuthResponse> {
     const response: AxiosResponse<AuthResponse> = await this.client.post('/auth/google', {
       access_token: accessToken
+    })
+    return response.data
+  }
+
+  async exchangeGoogleCode(code: string): Promise<AuthResponse> {
+    const response: AxiosResponse<AuthResponse> = await this.client.post('/auth/google/callback', {
+      code: code
     })
     return response.data
   }

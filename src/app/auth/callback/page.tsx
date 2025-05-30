@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { api } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase'
 
 export default function AuthCallback() {
   const router = useRouter()
@@ -25,37 +25,75 @@ export default function AuthCallback() {
           return
         }
 
-        // Parse URL fragment for access_token (implicit flow)
-        if (window.location.hash) {
-          const fragment = new URLSearchParams(window.location.hash.substring(1))
-          const accessToken = fragment.get('access_token')
-          
-          if (accessToken) {
-            console.log('Found access token in URL fragment (implicit flow)')
-            
-            try {
-              // Send the token to our backend to verify and get user info
-              const response = await api.exchangeGoogleToken(accessToken)
-              setUserFromAuth(response.user, response.access_token)
-              
-              setStatus('success')
-              setMessage('Authentication successful! Redirecting...')
-              
-              // Redirect to dashboard after a short delay
-              setTimeout(() => {
-                router.push('/dashboard')
-              }, 1500)
-              return
-            } catch (error: any) {
-              console.error('Token verification error:', error)
-              throw new Error('Failed to verify access token')
-            }
-          }
+        // Get the current session from Supabase
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError)
+          setStatus('error')
+          setMessage('Failed to get authentication session')
+          return
         }
 
-        // If no access token found, show error
+        if (session && session.user) {
+          console.log('OAuth session found:', session.user.email)
+          
+          // Create user object from Supabase session
+          const userData = {
+            id: session.user.id,
+            email: session.user.email || '',
+            role: session.user.user_metadata?.role || 'user'
+          }
+          
+          // Update the auth context with the user data and token
+          setUserFromAuth(userData, session.access_token)
+          
+          setStatus('success')
+          setMessage('Authentication successful! Redirecting...')
+          
+          // Redirect to dashboard after a short delay
+          setTimeout(() => {
+            router.push('/dashboard')
+          }, 1500)
+          return
+        }
+
+        // If no session found, try to handle the OAuth callback
+        const { data, error: callbackError } = await supabase.auth.exchangeCodeForSession(window.location.href)
+        
+        if (callbackError) {
+          console.error('OAuth callback error:', callbackError)
+          setStatus('error')
+          setMessage('Failed to complete OAuth authentication')
+          return
+        }
+
+        if (data.session && data.user) {
+          console.log('OAuth callback successful:', data.user.email)
+          
+          // Create user object from OAuth callback
+          const userData = {
+            id: data.user.id,
+            email: data.user.email || '',
+            role: data.user.user_metadata?.role || 'user'
+          }
+          
+          // Update the auth context with the user data and token
+          setUserFromAuth(userData, data.session.access_token)
+          
+          setStatus('success')
+          setMessage('Authentication successful! Redirecting...')
+          
+          // Redirect to dashboard after a short delay
+          setTimeout(() => {
+            router.push('/dashboard')
+          }, 1500)
+          return
+        }
+
+        // If we get here, no valid session was found
         setStatus('error')
-        setMessage('No access token received from authentication provider. Please try again.')
+        setMessage('No valid authentication session found')
         
       } catch (error: any) {
         console.error('Callback error:', error)
