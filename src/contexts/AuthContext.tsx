@@ -54,13 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.setAuthToken(token)
       const userData = await api.getCurrentUser()
       console.log('✅ User data received:', userData)
-      console.log('📝 Setting user state...')
       
-      // Set user first, then loading to ensure proper state synchronization
+      // Use a single state update to ensure synchronization
       setUser(userData)
-      console.log('✅ User state set complete')
+      // Small delay to ensure user state is set before loading becomes false
+      await new Promise(resolve => setTimeout(resolve, 0))
       setLoading(false)
-      console.log('✅ Loading set to false')
+      console.log('✅ Auth check complete - user set and loading disabled')
     } catch (error) {
       console.error('❌ Auth check failed:', error)
       console.log('🧹 Clearing invalid token from localStorage')

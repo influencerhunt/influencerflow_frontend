@@ -21,14 +21,20 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Only redirect if we're not loading AND there's definitely no user
+    // This prevents race conditions where loading becomes false before user is set
+    if (loading) {
+      return // Still loading, don't do anything yet
+    }
+    
+    if (!user) {
+      console.log('No user found after auth check, redirecting to login')
       router.push('/login')
       return
     }
 
-    if (user) {
-      fetchUserProfile()
-    }
+    console.log('User found, fetching profile:', user)
+    fetchUserProfile()
   }, [user, loading, router])
 
   const fetchUserProfile = async () => {

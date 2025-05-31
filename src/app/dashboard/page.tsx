@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-// import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
@@ -18,7 +18,7 @@ interface TestResults {
 
 export default function Dashboard() {
   const { user, loading } = useAuth()
-  // const router = useRouter()
+  const router = useRouter()
   const [testResults, setTestResults] = useState<TestResults>({})
   const [isLoading, setIsLoading] = useState(false)
   
@@ -29,17 +29,11 @@ export default function Dashboard() {
     console.log('🚀 Dashboard useEffect - loading:', loading, 'user:', user)
     
     // Only redirect if we're definitely not loading and definitely have no user
-    // Add a small delay to ensure state synchronization
     if (!loading && !user) {
-      console.log('🔄 Scheduling redirect to login...')
-      const timeoutId = setTimeout(() => {
-        console.log('🔄 Executing redirect to login...')
-        // router.push('/login')
-      }, 100) // Small delay to ensure state is synchronized
-      
-      return () => clearTimeout(timeoutId)
+      console.log('🔄 Redirecting to login...')
+      router.push('/login')
     }
-  }, [user, loading])
+  }, [user, loading, router])
 
   const testEndpoint = async (endpoint: string, testName: string) => {
     setIsLoading(true)
