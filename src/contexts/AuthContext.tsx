@@ -2,12 +2,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 interface User {
   id: string
   email: string
   role: string
+  full_name?: string
+  profile_completed?: boolean
 }
 
 interface AuthContextType {
@@ -16,6 +18,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>
   setUserFromAuth: (user: User, token: string) => void
   signup: (userData: { email: string; password: string; full_name: string; role: string }) => Promise<void>
+  updateUserProfile: (profileData: any) => Promise<void>
   logout: () => void
   loading: boolean
 }
@@ -77,6 +80,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('token', response.access_token)
       api.setAuthToken(response.access_token)
       setUser(response.user)
+      
+      // Check if user needs onboarding
+      if (!response.user.profile_completed) {
+        window.location.href = '/onboarding'
+      }
     } catch (error) {
       console.error('Login failed:', error)
       throw error
@@ -87,22 +95,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('token', token)
     api.setAuthToken(token)
     setUser(user)
+    
+    // Check if user needs onboarding (for OAuth flows)
+    const isSignupIntent = localStorage.getItem('oauth_signup_intent') === 'true'
+    if (isSignupIntent || !user.profile_completed) {
+      localStorage.removeItem('oauth_signup_intent')
+      window.location.href = '/onboarding'
+    }
   }
 
   const loginWithGoogle = async () => {
     try {
-      // Use Supabase client directly for OAuth (this handles PKCE properly)
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-
-      if (error) {
-        throw error
-      }
-      // The redirect will happen automatically
+      console.log('🔄 Starting Google OAuth flow...')
+      
+      // Get the Google OAuth URL from our backend
+      const { url } = await api.getGoogleAuthUrl()
+      
+      console.log('✅ Got Google OAuth URL, redirecting...')
+      
+      // Redirect to Google OAuth
+      window.location.href = url
     } catch (error) {
       console.error('Google login failed:', error)
       throw error
@@ -119,8 +131,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateUserProfile = async (profileData: any) => {
+    try {
+      const updatedUser = await api.updateUserProfile(profileData)
+      setUser(updatedUser)
+    } catch (error) {
+      console.error('Profile update failed:', error)
+      throw error
+    }
+  }
+
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('oauth_signup_intent')
     api.setAuthToken('')
     setUser(null)
   }
@@ -131,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithGoogle,
     setUserFromAuth,
     signup,
+    updateUserProfile,
     logout,
     loading,
   }

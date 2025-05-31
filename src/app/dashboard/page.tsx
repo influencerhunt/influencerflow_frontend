@@ -1,218 +1,290 @@
-'use client'
+"use client"
 
+import { Button } from "@/components/ui/button"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { api } from '@/lib/api'
+import { useEffect } from 'react'
+import Link from 'next/link'
 
-interface TestResult {
-  success: boolean
-  data?: any
-  error?: string
-}
-
-interface TestResults {
-  [key: string]: TestResult
-}
-
-export default function Dashboard() {
-  const { user, loading } = useAuth()
+export default function DashboardPage() {
+  const { user, loading, logout } = useAuth()
   const router = useRouter()
-  const [testResults, setTestResults] = useState<TestResults>({})
-  const [isLoading, setIsLoading] = useState(false)
-  
-  // Debug logging
-  console.log('🎯 Dashboard render - loading:', loading, 'user:', user)
-  
+
   useEffect(() => {
-    console.log('🚀 Dashboard useEffect - loading:', loading, 'user:', user)
-    
-    // Only redirect if we're definitely not loading and definitely have no user
     if (!loading && !user) {
-      console.log('🔄 Redirecting to login...')
       router.push('/login')
     }
   }, [user, loading, router])
 
-  const testEndpoint = async (endpoint: string, testName: string) => {
-    setIsLoading(true)
-    try {
-      let result
-      switch (endpoint) {
-        case 'protected':
-          result = await api.testProtected()
-          break
-        case 'admin':
-          result = await api.testAdminOnly()
-          break
-        case 'influencer':
-          result = await api.testInfluencerOnly()
-          break
-        default:
-          result = { error: 'Unknown endpoint' }
-      }
-      setTestResults((prev: TestResults) => ({ ...prev, [testName]: { success: true, data: result } }))
-    } catch (error: any) {
-      setTestResults((prev: TestResults) => ({ 
-        ...prev, 
-        [testName]: { 
-          success: false, 
-          error: error.response?.data?.detail || error.message 
-        } 
-      }))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (!user) {
-    return null // Will redirect to login
+    return null
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Welcome Section */}
-          <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
-            <div className="px-4 py-5 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Welcome to your Dashboard!
-                  </h1>
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Email:</span> {user.email}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">User ID:</span> {user.id}
-                    </p>
-                    <div className="flex items-center mt-1">
-                      <span className="text-sm font-medium text-gray-600 mr-2">Role:</span>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                        user.role === 'admin' 
-                          ? 'bg-red-100 text-red-800'
-                          : user.role === 'influencer'
-                          ? 'bg-purple-100 text-purple-800'
-                          : user.role === 'brand'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {user.role}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex space-x-3">
-                  {/* <Button onClick={() => router.push('/profile')}>
-                    View Profile
-                  </Button> */}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* API Testing Section */}
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">API Testing</h2>
-              <p className="text-sm text-gray-600 mb-6">
-                Test different API endpoints based on your role and permissions.
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-3">
-                  <Button
-                    onClick={() => testEndpoint('protected', 'Protected Route')}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    Test Protected Route
-                  </Button>
-                  {testResults['Protected Route'] && (
-                    <div className={`p-3 rounded text-xs ${
-                      testResults['Protected Route'].success 
-                        ? 'bg-green-50 text-green-800' 
-                        : 'bg-red-50 text-red-800'
-                    }`}>
-                      {testResults['Protected Route'].success 
-                        ? JSON.stringify(testResults['Protected Route'].data, null, 2)
-                        : testResults['Protected Route'].error
-                      }
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <Button
-                    onClick={() => testEndpoint('admin', 'Admin Only')}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Test Admin Only
-                  </Button>
-                  {testResults['Admin Only'] && (
-                    <div className={`p-3 rounded text-xs ${
-                      testResults['Admin Only'].success 
-                        ? 'bg-green-50 text-green-800' 
-                        : 'bg-red-50 text-red-800'
-                    }`}>
-                      {testResults['Admin Only'].success 
-                        ? JSON.stringify(testResults['Admin Only'].data, null, 2)
-                        : testResults['Admin Only'].error
-                      }
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <Button
-                    onClick={() => testEndpoint('influencer', 'Influencer Only')}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Test Influencer Only
-                  </Button>
-                  {testResults['Influencer Only'] && (
-                    <div className={`p-3 rounded text-xs ${
-                      testResults['Influencer Only'].success 
-                        ? 'bg-green-50 text-green-800' 
-                        : 'bg-red-50 text-red-800'
-                    }`}>
-                      {testResults['Influencer Only'].success 
-                        ? JSON.stringify(testResults['Influencer Only'].data, null, 2)
-                        : testResults['Influencer Only'].error
-                      }
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <h3 className="text-sm font-medium text-blue-900 mb-2">How it works:</h3>
-                <ul className="text-xs text-blue-800 space-y-1">
-                  <li>• <strong>Protected Route:</strong> Available to all authenticated users</li>
-                  <li>• <strong>Admin Only:</strong> Only accessible by users with 'admin' role</li>
-                  <li>• <strong>Influencer Only:</strong> Only accessible by users with 'influencer' role</li>
-                  <li>• Admins can access all endpoints regardless of specific role requirements</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {/* Welcome Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">
+          Welcome to your Dashboard, {user.full_name || user.email.split('@')[0]}! 👋
+        </h1>
+        <p className="text-muted-foreground">
+          Here's an overview of your InfluencerFlow account
+        </p>
       </div>
+
+      {/* User Info Card */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              Your Profile
+              <Badge variant={user.role === 'admin' ? 'destructive' : user.role === 'influencer' ? 'secondary' : 'outline'}>
+                {user.role}
+              </Badge>
+            </span>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/onboarding">Complete Profile</Link>
+              </Button>
+              <Button size="sm" variant="outline" onClick={logout}>
+                Logout
+              </Button>
+            </div>
+          </CardTitle>
+          <CardDescription>
+            Account information and settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Email</p>
+              <p className="mb-3">{user.email}</p>
+              
+              <p className="text-sm font-medium text-muted-foreground">Full Name</p>
+              <p className="mb-3">{user.full_name || 'Not provided'}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Account Type</p>
+              <p className="mb-3 capitalize">{user.role}</p>
+              
+              <p className="text-sm font-medium text-muted-foreground">Profile Status</p>
+              <div className="flex items-center gap-2">
+                <Badge variant={user.profile_completed ? 'secondary' : 'outline'}>
+                  {user.profile_completed ? 'Complete' : 'Incomplete'}
+                </Badge>
+                {!user.profile_completed && (
+                  <Button size="sm" asChild>
+                    <Link href="/onboarding">Complete Now</Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Role-specific content */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {user.role === 'admin' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>🛠️ Admin Tools</CardTitle>
+              <CardDescription>
+                Administrative functions and management
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Button variant="outline" className="w-full" disabled>
+                  Manage Users
+                </Button>
+                <Button variant="outline" className="w-full" disabled>
+                  View Analytics
+                </Button>
+                <Button variant="outline" className="w-full" disabled>
+                  System Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {user.role === 'influencer' && (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>📊 Content Analytics</CardTitle>
+                <CardDescription>
+                  Track your content performance and engagement
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="/dashboard/content-analysis">
+                      YouTube Analytics
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="w-full" disabled>
+                    Engagement Report
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>🤝 Brand Collaborations</CardTitle>
+                <CardDescription>
+                  Manage your partnerships
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full" disabled>
+                    Active Campaigns
+                  </Button>
+                  <Button variant="outline" className="w-full" disabled>
+                    Browse Opportunities
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {user.role === 'brand' && (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>🎯 Campaign Management</CardTitle>
+                <CardDescription>
+                  Create and manage your campaigns
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full" disabled>
+                    Create Campaign
+                  </Button>
+                  <Button variant="outline" className="w-full" disabled>
+                    Active Campaigns
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>🔍 Influencer Discovery</CardTitle>
+                <CardDescription>
+                  Find the perfect creators for your brand
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full" disabled>
+                    Browse Influencers
+                  </Button>
+                  <Button variant="outline" className="w-full" disabled>
+                    Saved Profiles
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Common cards for all users */}
+        <Card>
+          <CardHeader>
+            <CardTitle>💬 Messages</CardTitle>
+            <CardDescription>
+              Communication center
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full" disabled>
+                Inbox (0)
+              </Button>
+              <Button variant="outline" className="w-full" disabled>
+                Sent Messages
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>⚙️ Settings</CardTitle>
+            <CardDescription>
+              Account and notification preferences
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/onboarding">Edit Profile</Link>
+              </Button>
+              <Button variant="outline" className="w-full" disabled>
+                Notifications
+              </Button>
+              <Button variant="outline" className="w-full" disabled>
+                Privacy Settings
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Stats */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>📈 Quick Stats</CardTitle>
+          <CardDescription>
+            Your account overview
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+              <p className="text-2xl font-bold">0</p>
+              <p className="text-sm text-muted-foreground">Active Projects</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">0</p>
+              <p className="text-sm text-muted-foreground">Messages</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {user.profile_completed ? '100%' : '50%'}
+              </p>
+              <p className="text-sm text-muted-foreground">Profile Complete</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">0</p>
+              <p className="text-sm text-muted-foreground">Notifications</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 } 
