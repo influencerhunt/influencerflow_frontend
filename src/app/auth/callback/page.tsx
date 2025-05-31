@@ -45,7 +45,26 @@ export default function AuthCallback() {
             role: session.user.user_metadata?.role || 'user'
           }
           
-          // Update the auth context with the user data and token
+          // Check if this is a new user who needs to select a role
+          const isNewUser = !session.user.user_metadata?.role || session.user.user_metadata?.role === 'user'
+          
+          if (isNewUser) {
+            setStatus('success')
+            setMessage('Authentication successful! Please complete your profile...')
+            
+            // Redirect to role selection page with user data
+            setTimeout(() => {
+              const params = new URLSearchParams({
+                user_id: userData.id,
+                email: userData.email,
+                token: session.access_token
+              })
+              router.push(`/auth/complete-profile?${params.toString()}`)
+            }, 1500)
+            return
+          }
+          
+          // Update the auth context with the user data and token for existing users
           setUserFromAuth(userData, session.access_token)
           
           setStatus('success')
@@ -78,7 +97,26 @@ export default function AuthCallback() {
             role: data.user.user_metadata?.role || 'user'
           }
           
-          // Update the auth context with the user data and token
+          // Check if this is a new user who needs to select a role
+          const isNewUser = !data.user.user_metadata?.role || data.user.user_metadata?.role === 'user'
+          
+          if (isNewUser) {
+            setStatus('success')
+            setMessage('Authentication successful! Please complete your profile...')
+            
+            // Redirect to role selection page with user data
+            setTimeout(() => {
+              const params = new URLSearchParams({
+                user_id: userData.id,
+                email: userData.email,
+                token: data.session.access_token
+              })
+              router.push(`/auth/complete-profile?${params.toString()}`)
+            }, 1500)
+            return
+          }
+          
+          // Update the auth context with the user data and token for existing users
           setUserFromAuth(userData, data.session.access_token)
           
           setStatus('success')

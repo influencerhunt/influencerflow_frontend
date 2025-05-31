@@ -93,6 +93,11 @@ class ApiClient {
     return response.data
   }
 
+  async updateUserRole(role: string): Promise<User> {
+    const response: AxiosResponse<User> = await this.client.post('/auth/update-role', { role })
+    return response.data
+  }
+
   async logout(): Promise<void> {
     await this.client.post('/auth/logout')
   }

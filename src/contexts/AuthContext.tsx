@@ -15,7 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   loginWithGoogle: () => Promise<void>
   setUserFromAuth: (user: User, token: string) => void
-  signup: (email: string, password: string, role: string) => Promise<void>
+  signup: (userData: { email: string; password: string; full_name: string; role: string }) => Promise<void>
   logout: () => void
   loading: boolean
 }
@@ -109,9 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signup = async (email: string, password: string, role: string) => {
+  const signup = async (userData: { email: string; password: string; full_name: string; role: string }) => {
     try {
-      await api.signup({ email, password, role })
+      await api.signup(userData)
       // Note: User needs to verify email before they can login
     } catch (error) {
       console.error('Signup failed:', error)
