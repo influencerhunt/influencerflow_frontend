@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
-type UserRole = 'influencer' | 'brand' | 'user'
+type UserRole = 'influencer' | 'brand'
 
 interface RoleSelectionProps {
   onRoleSelect: (role: UserRole) => void
@@ -89,23 +89,6 @@ export function RoleSelection({
                 <li>• Manage partnerships</li>
               </ul>
             </div>
-          </div>
-        </div>
-
-        {/* Just Browsing Option */}
-        <div 
-          onClick={() => !isLoading && onRoleSelect('user')}
-          className={`cursor-pointer p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 transition-all ${
-            isLoading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          <div className="text-center">
-            <h3 className="text-md font-medium text-gray-700">
-              Just browsing for now
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Explore the platform and upgrade later
-            </p>
           </div>
         </div>
       </div>

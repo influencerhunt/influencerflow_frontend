@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { RoleSelection } from '@/components/RoleSelection'
 import Link from 'next/link'
 
-type UserRole = 'influencer' | 'brand' | 'user'
+type UserRole = 'influencer' | 'brand'
 
 export function SignupForm() {
   const [step, setStep] = useState<'role' | 'details'>('role')
@@ -135,13 +135,11 @@ export function SignupForm() {
         <div className="p-3 bg-gray-50 rounded-md">
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${
-              formData.role === 'influencer' ? 'bg-purple-500' :
-              formData.role === 'brand' ? 'bg-blue-500' : 'bg-gray-500'
+              formData.role === 'influencer' ? 'bg-purple-500' : 'bg-blue-500'
             }`}></div>
             <span className="text-sm text-gray-600">
               Account type: <span className="font-medium capitalize">
-                {formData.role === 'influencer' ? 'Creator/Influencer' : 
-                 formData.role === 'brand' ? 'Brand/Business' : 'User'}
+                {formData.role === 'influencer' ? 'Creator/Influencer' : 'Brand/Business'}
               </span>
             </span>
           </div>

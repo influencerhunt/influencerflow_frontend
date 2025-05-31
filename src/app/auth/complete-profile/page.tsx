@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { RoleSelection } from '@/components/RoleSelection'
 import { api } from '@/lib/api'
 
-type UserRole = 'influencer' | 'brand' | 'user'
+type UserRole = 'influencer' | 'brand'
 
 export default function CompleteProfilePage() {
   const router = useRouter()
@@ -21,7 +21,7 @@ export default function CompleteProfilePage() {
   const tempToken = searchParams.get('token')
 
   useEffect(() => {
-    // If user is already authenticated and has a role, redirect to dashboard
+    // If user is already authenticated and has a proper role (not 'user'), redirect to dashboard
     if (user && user.role && user.role !== 'user') {
       router.push('/dashboard')
     }
