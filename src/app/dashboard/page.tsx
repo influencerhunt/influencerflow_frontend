@@ -199,8 +199,10 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Button variant="outline" className="w-full" disabled>
-                    Browse Influencers
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="/search">
+                      Browse Influencers
+                    </Link>
                   </Button>
                   <Button variant="outline" className="w-full" disabled>
                     Saved Profiles
