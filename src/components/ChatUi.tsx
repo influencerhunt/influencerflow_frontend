@@ -1,15 +1,16 @@
-"use client";
+// ChatMessageListDemo.tsx
+"use client"
 
-import { useState, FormEvent } from "react";
-import { Paperclip, Mic, CornerDownLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, FormEvent } from "react"
+import { Paperclip, Mic, CornerDownLeft } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   ChatBubble,
   ChatBubbleAvatar,
   ChatBubbleMessage,
-} from "@/components/ui/chat-bubble";
-import { ChatMessageList } from "@/components/ui/chat-message-list";
-import { ChatInput } from "@/components/ui/chat-input";
+} from "@/components/ui/chat-bubble"
+import { ChatMessageList } from "@/components/ui/chat-message-list"
+import { ChatInput } from "@/components/ui/chat-input"
 
 export default function ChatMessageListDemo() {
   const [messages, setMessages] = useState([
@@ -28,14 +29,14 @@ export default function ChatMessageListDemo() {
       content: "Sure! I'd be happy to help. What would you like to know?",
       sender: "ai",
     },
-  ]);
+  ])
 
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+    e.preventDefault()
+    if (!input.trim()) return
 
     setMessages((prev) => [
       ...prev,
@@ -44,9 +45,9 @@ export default function ChatMessageListDemo() {
         content: input,
         sender: "user",
       },
-    ]);
-    setInput("");
-    setIsLoading(true);
+    ])
+    setInput("")
+    setIsLoading(true)
 
     setTimeout(() => {
       setMessages((prev) => [
@@ -56,21 +57,26 @@ export default function ChatMessageListDemo() {
           content: "This is an AI response to your message.",
           sender: "ai",
         },
-      ]);
-      setIsLoading(false);
-    }, 1000);
-  };
+      ])
+      setIsLoading(false)
+    }, 1000)
+  }
 
   const handleAttachFile = () => {
-    //
-  };
+    // just a placeholder
+  }
 
   const handleMicrophoneClick = () => {
-    //
-  };
+    // just a placeholder
+  }
 
   return (
-    <div className="h-[400px] border bg-background rounded-lg flex flex-col">
+    <div className="flex-1 border bg-background rounded-lg flex flex-col overflow-hidden">
+      {/* 
+        1) This inner div is flex-1 & overflow-hidden so messages fill available space 
+           → pushing the input area to the bottom.
+        2) The ChatMessageList itself can scroll if it overflows.
+      */}
       <div className="flex-1 overflow-hidden">
         <ChatMessageList>
           {messages.map((message) => (
@@ -108,6 +114,10 @@ export default function ChatMessageListDemo() {
         </ChatMessageList>
       </div>
 
+      {/* 
+        3) Input area is always below the message list because 
+           its parent is flex-col with the above div = flex-1 
+      */}
       <div className="p-4 border-t">
         <form
           onSubmit={handleSubmit}
@@ -147,5 +157,5 @@ export default function ChatMessageListDemo() {
         </form>
       </div>
     </div>
-  );
+  )
 }

@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
   const hasToken = !!(cookieToken || headerToken)
   
   // Define protected routes
-  const protectedRoutes = ['/dashboard', '/admin', '/profile']
+  const protectedRoutes = ['/dashboard', '/admin', '/profile', '/agentchats']
   const authRoutes = ['/login', '/signup']
   
   // Check if the current path is protected
