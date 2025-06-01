@@ -35,13 +35,20 @@ export default function OnboardingPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login')
-      return
+    // Only redirect if we're sure there's no user (not during loading)
+    if (user === null) {
+      // Small delay to ensure auth context has finished loading
+      const timer = setTimeout(() => {
+        if (!user) {
+          router.push('/login')
+        }
+      }, 1000)
+      
+      return () => clearTimeout(timer)
     }
     
     // Pre-fill name if available
-    if (user.email) {
+    if (user?.email) {
       setFormData(prev => ({
         ...prev,
         full_name: user.full_name || ""

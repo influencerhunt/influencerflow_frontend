@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 interface User {
   id: string
   email: string
-  role: string
+  role: string | null
   full_name?: string
   profile_completed?: boolean
 }
@@ -19,6 +19,7 @@ interface AuthContextType {
   setUserFromAuth: (user: User, token: string) => void
   signup: (userData: { email: string; password: string; full_name: string; role: string }) => Promise<void>
   updateUserProfile: (profileData: any) => Promise<void>
+  updateUserRole: (role: string) => Promise<User>
   logout: () => void
   loading: boolean
 }
@@ -60,8 +61,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Use a single state update to ensure synchronization
       setUser(userData)
+      
+      // Check if user needs role selection or onboarding (after successful auth)
+      console.log('🔍 User role check:', { role: userData.role, typeof: typeof userData.role })
+      
+      if (!userData.role || (userData.role !== 'influencer' && userData.role !== 'brand')) {
+        console.log('👤 Role not set or invalid, redirecting to role selection...')
+        // Show loading state for a bit longer for better UX
+        await new Promise(resolve => setTimeout(resolve, 800))
+        setLoading(false)
+        // Only redirect if we're not already on role-selection page
+        if (!window.location.pathname.includes('/auth/role-selection')) {
+          setTimeout(() => {
+            window.location.href = '/auth/role-selection'
+          }, 200)
+        }
+        return
+      } else if (!userData.profile_completed) {
+        console.log('👤 Profile incomplete, redirecting to onboarding...')
+        // Show loading state for a bit longer for better UX
+        await new Promise(resolve => setTimeout(resolve, 800))
+        setLoading(false)
+        // Only redirect if we're not already on onboarding page
+        if (!window.location.pathname.includes('/onboarding')) {
+          setTimeout(() => {
+            window.location.href = '/onboarding'
+          }, 200)
+        }
+        return
+      }
+      
       // Small delay to ensure user state is set before loading becomes false
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise(resolve => setTimeout(resolve, 300))
       setLoading(false)
       console.log('✅ Auth check complete - user set and loading disabled')
     } catch (error) {
@@ -92,15 +123,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const setUserFromAuth = (user: User, token: string) => {
+    console.log('🔧 Setting user from auth:', user)
     localStorage.setItem('token', token)
     api.setAuthToken(token)
     setUser(user)
     
-    // Check if user needs onboarding (for OAuth flows)
+    // Check role and onboarding status for redirect
     const isSignupIntent = localStorage.getItem('oauth_signup_intent') === 'true'
-    if (isSignupIntent || !user.profile_completed) {
+    const needsRoleSelection = !user.role || (user.role !== 'influencer' && user.role !== 'brand')
+    const needsOnboarding = (user.role === 'influencer' || user.role === 'brand') && (isSignupIntent || !user.profile_completed)
+    
+    console.log('🎯 User flow check:', {
+      isSignupIntent,
+      role: user.role,
+      roleType: typeof user.role,
+      profile_completed: user.profile_completed,
+      needsRoleSelection,
+      needsOnboarding
+    })
+    
+    if (needsRoleSelection) {
+      console.log('📍 Redirecting to role selection...')
       localStorage.removeItem('oauth_signup_intent')
-      window.location.href = '/onboarding'
+      // Use a small delay to ensure state is set
+      setTimeout(() => {
+        window.location.href = '/auth/role-selection'
+      }, 50)
+    } else if (needsOnboarding) {
+      console.log('📍 Redirecting to onboarding...')
+      localStorage.removeItem('oauth_signup_intent')
+      // Use a small delay to ensure state is set
+      setTimeout(() => {
+        window.location.href = '/onboarding'
+      }, 50)
+    } else {
+      console.log('📍 User setup complete, can go to dashboard')
     }
   }
 
@@ -141,6 +198,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateUserRole = async (role: string) => {
+    try {
+      const updatedUser = await api.updateUserRole(role)
+      console.log('🔄 Role updated successfully:', updatedUser)
+      // Update user state with complete user object
+      setUser(updatedUser)
+      return updatedUser
+    } catch (error) {
+      console.error('Role update failed:', error)
+      throw error
+    }
+  }
+
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('oauth_signup_intent')
@@ -155,8 +225,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserFromAuth,
     signup,
     updateUserProfile,
+    updateUserRole,
     logout,
     loading,
+  }
+
+  // Show loading screen while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-4"></div>
+          <h1 className="text-2xl font-bold mb-4">InfluencerFlow</h1>
+          <p className="text-muted-foreground">
+            Setting up your account...
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

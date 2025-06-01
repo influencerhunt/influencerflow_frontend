@@ -6,7 +6,7 @@ const BASE_URL = ''
 interface User {
   id: string
   email: string
-  role: string
+  role: string | null
   full_name?: string
   profile_completed?: boolean
 }
@@ -26,6 +26,7 @@ interface SignupData {
   email: string
   password: string
   role: string
+  full_name?: string
 }
 
 interface GoogleAuthUrlResponse {

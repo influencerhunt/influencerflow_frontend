@@ -9,7 +9,7 @@ import { api } from '@/lib/api'
 interface UserProfile {
   id: string
   email: string
-  role: string
+  role: string | null
   created_at?: string
 }
 
@@ -199,6 +199,14 @@ export default function ProfilePage() {
                   variant="outline"
                 >
                   Back to Home
+                </Button>
+                {/* Temporary testing button */}
+                <Button 
+                  onClick={() => router.push('/auth/role-selection')}
+                  variant="secondary"
+                  className="bg-orange-100 text-orange-800 hover:bg-orange-200"
+                >
+                  Test Role Selection
                 </Button>
               </div>
             </div>

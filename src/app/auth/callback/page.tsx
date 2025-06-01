@@ -34,12 +34,15 @@ export default function AuthCallbackPage() {
         // Exchange the authorization code for our backend token
         const response = await api.exchangeGoogleCode(code)
         console.log('✅ Backend authentication successful')
+        console.log('📝 User response:', response.user)
+        console.log('🔍 Profile completed:', response.user.profile_completed)
+        console.log('🔍 OAuth signup intent:', localStorage.getItem('oauth_signup_intent'))
         
-        // Set user in auth context (this will handle onboarding redirect if needed)
+        // Set user in auth context (this will handle routing to onboarding or dashboard)
         setUserFromAuth(response.user, response.access_token)
         
-        // If we get here, user doesn't need onboarding
-        router.push('/dashboard')
+        // Let setUserFromAuth handle the routing - don't interfere with additional redirects
+        console.log('✅ User set in auth context, routing will be handled automatically')
         
       } catch (error: any) {
         console.error('❌ OAuth callback error:', error)
