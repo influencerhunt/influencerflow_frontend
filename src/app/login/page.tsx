@@ -64,7 +64,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-md">
+    <div className="container mt-28 mx-auto px-4 py-8 max-w-md">
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>

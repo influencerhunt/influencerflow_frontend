@@ -36,14 +36,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mt-22 mx-auto px-4 py-8 max-w-4xl">
       {/* Welcome Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">
           Welcome to your Dashboard, {user.full_name || user.email.split('@')[0]}! 👋
         </h1>
         <p className="text-muted-foreground">
-          Here's an overview of your InfluencerFlow account
+          Here&apos;s an overview of your InfluencerFlow account
         </p>
       </div>
 

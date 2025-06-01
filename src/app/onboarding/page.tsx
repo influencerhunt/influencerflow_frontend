@@ -130,7 +130,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="container mt-24 mx-auto px-4 py-8 max-w-2xl">
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Complete Your Profile</CardTitle>
