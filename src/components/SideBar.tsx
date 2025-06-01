@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState, useEffect, use } from "react"
 import {
   Sidebar,
   SidebarContent,
@@ -24,25 +24,41 @@ import {
   Settings,
   User,
   ChevronsUpDown,
+  MessageSquare,
+  Clock,
 } from "lucide-react"
 
 import ChatMessageListDemo from "@/components/ChatUi"
+import { negotiationAgentApi } from "@/lib/api"
+import { useAuth } from "@/contexts/AuthContext"
+import { Badge } from "@/components/ui/badge"
+
+interface NegotiationSession {
+  session_id: string
+  brand_name: string
+  influencer_name: string
+  brand_id: string
+  inf_id: string
+  status: string
+  created_at: string
+  updated_at: string
+}
 
 const items = [
   { title: "Home", url: "#", icon: Home },
-  { title: "Inbox", url: "#", icon: Inbox },
-  { title: "Calendar", url: "#", icon: Calendar },
-  { title: "Search", url: "#", icon: Search },
-  { title: "Settings", url: "#", icon: Settings },
+//   { title: "Inbox", url: "#", icon: Inbox },
+//   { title: "Calendar", url: "#", icon: Calendar },
+//   { title: "Search", url: "#", icon: Search },
+//   { title: "Settings", url: "#", icon: Settings },
 ]
 
 export default function SidebarDemo() {
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+
   return (
     <SidebarProvider>
       <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
-        {/* =======================
-            1) Top Nav (fixed)
-        ======================= */}
+        {/* Top Nav (fixed) */}
         <header className="fixed top-0 left-0 right-0 z-30 h-16 px-4 flex items-center justify-between border-b bg-white shadow-sm">
           <div className="text-xl font-bold text-blue-600">InfluencerFlow</div>
           <div className="flex items-center gap-2">
@@ -53,22 +69,71 @@ export default function SidebarDemo() {
           </div>
         </header>
 
-        {/* =======================
-            2) Body: sidebar + chat (side-by-side)
-            - `flex flex-row flex-1` ensures they never wrap
-            - `pt-16` pushes content below the fixed header
-        ======================= */}
+        {/* Body: sidebar + chat (side-by-side) */}
         <div className="flex flex-row flex-1 pt-16 overflow-hidden">
-          <SidebarSection />
-          <ChatSection />
+          <SidebarSection 
+            selectedSessionId={selectedSessionId}
+            onSessionSelect={setSelectedSessionId}
+          />
+          <ChatSection sessionId={selectedSessionId} />
         </div>
       </div>
     </SidebarProvider>
   )
 }
 
-function SidebarSection() {
+interface SidebarSectionProps {
+  selectedSessionId: string | null
+  onSessionSelect: (sessionId: string) => void
+}
+
+function SidebarSection({ selectedSessionId, onSessionSelect }: SidebarSectionProps) {
   const { state, toggleSidebar } = useSidebar()
+  let { user } = useAuth()
+  const [sessions, setSessions] = useState<NegotiationSession[]>([])
+  const [loading, setLoading] = useState(false)
+  if (user) {
+    user.id="123456";
+    user.role="brand"; // For testing purposes, set user role to 'brand'
+  }else {  user= {
+    id: "123456",
+    role: "brand",
+    full_name: "Test User",
+    email: ""
+}
+  }
+  console.log("User:", user);
+  useEffect(() => {
+    if (user?.id && user?.role) {
+      loadUserSessions()
+    }
+  }, [user?.id, user?.role])
+
+  const loadUserSessions = async () => {
+    if (!user?.id || !user?.role) return
+    
+    setLoading(true)
+    try {
+      let userSessions: NegotiationSession[] = []
+      
+      if (user.role === 'brand') {
+        // For brands, fetch sessions by brand ID (using user.id as brand_id)
+        userSessions = await negotiationAgentApi.getBrandSessions(user.id)
+      } else if (user.role === 'influencer') {
+        // For influencers, fetch sessions by influencer ID (using user.id as inf_id)
+        userSessions = await negotiationAgentApi.getInfluencerSessions(user.id)
+      } else {
+        // For other roles or admin, get all sessions related to the user
+        userSessions = await negotiationAgentApi.getUserSessions(user.id)
+      }
+      
+      setSessions(userSessions)
+    } catch (error) {
+      console.error('Error loading sessions:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // If `collapsed`, use 4rem = w-16. Otherwise 20rem = w-80.
   const widthClass = state === "collapsed" ? "w-16" : "w-80"
@@ -90,8 +155,9 @@ function SidebarSection() {
         className="h-full"
       >
         <SidebarContent>
+          {/* Navigation Items */}
           <SidebarGroup>
-            <SidebarGroupLabel>Application</SidebarGroupLabel>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {items.map((item) => (
@@ -107,6 +173,60 @@ function SidebarSection() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+
+          {/* Negotiation Sessions */}
+          <SidebarGroup>
+            <SidebarGroupLabel className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              {user?.role === 'brand' ? 'My Brand Negotiations' : 
+               user?.role === 'influencer' ? 'My Collaborations' : 
+               'Negotiation Sessions'}
+              {loading && <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-500"></div>}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {sessions.length === 0 && !loading ? (
+                  <div className="px-3 py-2 text-sm text-gray-500">
+                    {user?.role === 'brand' 
+                      ? 'No brand negotiations yet' 
+                      : user?.role === 'influencer' 
+                      ? 'No collaborations yet' 
+                      : 'No sessions yet'}
+                  </div>
+                ) : (
+                  sessions.map((session) => (
+                    <SidebarMenuItem key={session.session_id}>
+                      <SidebarMenuButton 
+                        className={`flex flex-col items-start gap-1 h-auto p-3 ${
+                          selectedSessionId === session.session_id ? 'bg-accent' : ''
+                        }`}
+                        onClick={() => onSessionSelect(session.session_id)}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="font-medium text-sm truncate">
+                            {session.brand_name}
+                          </span>
+                          <Badge 
+                            variant={session.status === 'active' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {session.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate w-full">
+                          ↔ {session.influencer_name}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          {new Date(session.updated_at).toLocaleDateString()}
+                        </div>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         </SidebarContent>
 
         <SidebarFooter>
@@ -115,9 +235,11 @@ function SidebarSection() {
               <div className="flex items-center gap-2">
                 <User className="h-5 w-5 rounded-md" />
                 <div className="flex flex-col items-start">
-                  <span className="text-sm font-medium">John Doe</span>
+                  <span className="text-sm font-medium">
+                    {user?.full_name || user?.email || 'User'}
+                  </span>
                   <span className="text-xs text-muted-foreground">
-                    john@example.com
+                    {user?.role || 'No role'} • {user?.email}
                   </span>
                 </div>
               </div>
@@ -134,23 +256,34 @@ function SidebarSection() {
       */}
       <SidebarTrigger
         onClick={toggleSidebar}
-        className="absolute top-4 right-[-0rem] h-9 w-9 border rounded-md bg-white shadow"
+        className="absolute top-4 z-10 right-[-0rem] h-9 w-9 border rounded-md bg-white shadow"
       />
     </div>
   )
 }
 
-function ChatSection() {
+interface ChatSectionProps {
+  sessionId: string | null
+}
+
+function ChatSection({ sessionId }: ChatSectionProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Chat header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b">
-        <h1 className="text-lg font-semibold">AI Chat Assistant</h1>
+        <h1 className="text-lg font-semibold">
+          {sessionId ? 'Negotiation Chat' : 'AI Chat Assistant'}
+        </h1>
+        {sessionId && (
+          <Badge variant="outline" className="text-xs">
+            Session: {sessionId.slice(0, 8)}...
+          </Badge>
+        )}
       </div>
 
       {/* Chat content */}
       <div className="flex-1 flex flex-col overflow-hidden p-4 lg:p-6">
-        <ChatMessageListDemo />
+        <ChatMessageListDemo sessionId={sessionId} />
       </div>
     </div>
   )

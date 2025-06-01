@@ -50,6 +50,64 @@ interface ProfileUpdateData {
   content_categories?: string[]
 }
 
+// Negotiation Agent API types
+interface NegotiationSession {
+  session_id: string
+  brand_name: string
+  influencer_name: string
+  brand_id: string
+  inf_id: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+interface SessionSummary {
+  session_id: string
+  brand_id: string
+  inf_id: string
+  brand_name: string
+  influencer_name: string
+  status: string
+  messages: Array<{
+    role: string
+    content: string
+    timestamp: string
+  }>
+  deliverables?: any[]
+  budget?: {
+    amount: number
+    currency: string
+  }
+}
+
+interface ChatMessage {
+  id: string
+  session_id: string
+  message_type: 'user' | 'agent'
+  content: string
+  timestamp: string
+  metadata?: any
+}
+
+interface SessionChatResponse {
+  success: boolean
+  session_id: string
+  session_info: {
+    brand_name: string
+    influencer_name: string
+    status: string
+    current_round: number
+  }
+  messages: ChatMessage[]
+  total_messages: number
+  pagination: {
+    limit: number
+    offset: number
+    has_more: boolean
+  }
+}
+
 class ApiClient {
   private client: AxiosInstance
 
@@ -263,6 +321,134 @@ export const youtubeApi = {
   }
 };
 
+// Negotiation Agent API functions
+export const negotiationAgentApi = {
+  // Get all sessions for a user (can be brand or influencer)
+  getUserSessions: async (userId: string): Promise<NegotiationSession[]> => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get(`/api/negotiation-agent/sessions/user/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      return response.data.sessions || []
+    } catch (error) {
+      console.error('Error fetching user sessions:', error)
+      return []
+    }
+  },
+
+  // Get sessions by brand ID
+  getBrandSessions: async (brandId: string): Promise<NegotiationSession[]> => {
+    try {
+      // const token = localStorage.getItem('token')
+      console.log('Fetching brand sessions for ID:', brandId)
+      const response = await axios.get(`http://localhost:8000/api/v1/negotiation-agent/sessions/brand/${brandId}`, {
+        headers: {
+          // 'Authorization': `Bearer ${token}`
+        }
+      })
+
+      return response.data.sessions || []
+    } catch (error) {
+      console.error('Error fetching brand sessions:', error)
+      return []
+    }
+  },
+
+  // Get sessions by influencer ID
+  getInfluencerSessions: async (infId: string): Promise<NegotiationSession[]> => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get(`http://localhost:8000/api/v1/negotiation-agent/sessions/influencer/${infId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      return response.data.sessions || []
+    } catch (error) {
+      console.error('Error fetching influencer sessions:', error)
+      return []
+    }
+  },
+
+  // Get session summary/details
+  getSessionSummary: async (sessionId: string): Promise<SessionSummary | null> => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get(`http://localhost:8000/api/v1/negotiation-agent/session/${sessionId}/summary`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching session summary:', error)
+      return null
+    }
+  },
+
+  // Get session chat messages
+  getSessionChat: async (sessionId: string): Promise<SessionChatResponse | null> => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get(`http://localhost:8000/api/v1/negotiation-agent/session/${sessionId}/chat`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      console.log('Session chat response:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('Error fetching session chat:', error)
+      return null
+    }
+  },
+
+  // Continue conversation
+  continueConversation: async (sessionId: string, userInput: string, userId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.post('http://localhost:8000/api/v1/negotiation-agent/continue', {
+        session_id: sessionId,
+        user_input: userInput,
+        user_id: userId
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error continuing conversation:', error)
+      throw error
+    }
+  },
+
+  // Start new negotiation
+  startNegotiation: async (brandDetails: any, influencerProfile: any, userId: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.post('http://localhost:8000/api/v1/negotiation-agent/start', {
+        brand_details: brandDetails,
+        influencer_profile: influencerProfile,
+        user_id: userId
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error starting negotiation:', error)
+      throw error
+    }
+  }
+}
+
 // Helper function to handle API errors
 export const handleApiError = (error: any) => {
   console.error('API Error:', error);
@@ -314,4 +500,4 @@ export const handleApiError = (error: any) => {
     error: true,
     message: error.message || 'An unexpected error occurred. Please try again later.'
   };
-}; 
+};
