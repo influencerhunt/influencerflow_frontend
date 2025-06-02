@@ -92,17 +92,16 @@ function SidebarSection({ selectedSessionId, onSessionSelect }: SidebarSectionPr
   let { user } = useAuth()
   const [sessions, setSessions] = useState<NegotiationSession[]>([])
   const [loading, setLoading] = useState(false)
-  if (user) {
-    user.id="38579c1e-9aaa-4fa7-8882-5429c9d5c221";
-    user.role="brand"; // For testing purposes, set user role to 'brand'
-  }else {  user= {
-    id: "38579c1e-9aaa-4fa7-8882-5429c9d5c221",
-    role: "brand",
-    full_name: "Test User",
-    email: ""
-}
-  }
+//   if (user) {
+//   }else {  user= {
+//     id: "65aa32cc-3514-429c-bc89-fcf0439d2d52",
+//     role: "influencer",
+//     full_name: "Test User",
+//     email: ""
+// }
+//   }
   console.log("User:", user);
+  if(user) user.id= user?.email;
   useEffect(() => {
     if (user?.id && user?.role) {
       loadUserSessions()
@@ -213,7 +212,7 @@ function SidebarSection({ selectedSessionId, onSessionSelect }: SidebarSectionPr
                         }`}
                         onClick={() => onSessionSelect(session.session_id)}
                       >
-                        <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center justify-between w-full ">
                           <span className="font-medium text-sm truncate">
                             {session.brand_name}
                           </span>

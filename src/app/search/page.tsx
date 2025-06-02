@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { negotiationAgentApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -102,6 +103,26 @@ export default function SearchPage() {
   const [isOutreaching, setIsOutreaching] = useState(false)
   const [showOutreachDialog, setShowOutreachDialog] = useState(false)
   const [outreachMessage, setOutreachMessage] = useState('')
+  const [showBrandDetailsDialog, setShowBrandDetailsDialog] = useState(false)
+  const [pendingInfluencer, setPendingInfluencer] = useState<InfluencerProfile | null>(null)
+  const [isBulkOutreach, setIsBulkOutreach] = useState(false)
+  const [brandDetails, setBrandDetails] = useState({
+    name: '',
+    budget: '',
+    budget_currency: 'USD',
+    goals: ['brand awareness'],
+    target_platforms: ['instagram'],
+    content_requirements: {
+      instagram_posts: 5,
+      youtube_videos: 2,
+      tiktok_videos: 3,
+      stories: 10
+    },
+    campaign_duration_days: '',
+    target_audience: '',
+    brand_guidelines: '',
+    brand_location: ''
+  })
   
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -156,36 +177,157 @@ export default function SearchPage() {
     }
   }
 
+  // Function to start a negotiation session with an influencer
+  const startNegotiationSession = async (influencer: InfluencerProfile) => {
+    if (!user) {
+      throw new Error('User not authenticated')
+    }
+
+    try {
+      // Map location values to match backend enums
+      const mapLocationToEnum = (location: string) => {
+        const locationMap: Record<string, string> = {
+          'US': 'usa',
+          'USA': 'usa', 
+          'United States': 'usa',
+          'UK': 'uk',
+          'United Kingdom': 'uk',
+          'India': 'india',
+          'Canada': 'canada',
+          'Australia': 'australia',
+          'Germany': 'germany',
+          'France': 'france',
+          'Brazil': 'brazil',
+          'Japan': 'japan'
+        }
+        return locationMap[location] || 'global'
+      }
+
+      // Map platform values to match backend enums
+      const mapPlatformToEnum = (platform: string) => {
+        return platform.toLowerCase()
+      }
+
+      // Prepare brand details according to Pydantic model
+      const brandDetailsPayload = {
+        brand_id: brandDetails.name,
+        name: brandDetails.name || user.full_name || user.email || 'Brand Name',
+        budget: brandDetails.budget ? parseFloat(brandDetails.budget) : 5000,
+        budget_currency: brandDetails.budget_currency || 'USD',
+        goals: brandDetails.goals || ['brand awareness'],
+        target_platforms: brandDetails.target_platforms.map(mapPlatformToEnum),
+        content_requirements: brandDetails.content_requirements || {
+          instagram_posts: 5,
+          youtube_videos: 2,
+          tiktok_videos: 3,
+          stories: 10
+        },
+        campaign_duration_days: brandDetails.campaign_duration_days ? parseInt(brandDetails.campaign_duration_days) : 30,
+        target_audience: brandDetails.target_audience || "General audience",
+        brand_guidelines: brandDetails.brand_guidelines || "Professional and engaging content",
+        brand_location: mapLocationToEnum(brandDetails.brand_location || 'US')
+      }
+
+      // Fix engagement rate - convert from 0-1 to 0-100 if needed
+      let engagementRate = influencer.engagement_rate
+      if (engagementRate <= 1) {
+        engagementRate = engagementRate * 100  // Convert from decimal to percentage
+      }
+
+      // Prepare influencer profile details according to Pydantic model
+      const influencerProfilePayload = {
+        inf_id: influencer.name,
+        name: influencer.name,
+        followers: influencer.followers,
+        engagement_rate: engagementRate,
+        location: mapLocationToEnum(influencer.location),
+        platforms: [mapPlatformToEnum(influencer.platform)],
+        niches: [influencer.niche || 'general'],
+        previous_brand_collaborations: 10 // Default value
+      }
+
+      // Use username as user_id
+      const influencerUserId = influencer.username || influencer.id
+      
+      const response = await negotiationAgentApi.startNegotiation(
+        brandDetailsPayload,
+        influencerProfilePayload,
+        influencerUserId
+      )
+
+      return response
+    } catch (error) {
+      console.error('Failed to start negotiation session:', error)
+      throw error
+    }
+  }
+
+  // Function to handle individual contact button clicks
+  const handleContactInfluencer = async (influencer: InfluencerProfile) => {
+    setPendingInfluencer(influencer)
+    setIsBulkOutreach(false)
+    // Pre-fill brand details if available from user context
+    setBrandDetails(prev => ({
+      ...prev,
+      name: user?.full_name || user?.email || '',
+      brand_location: prev.brand_location || ''
+    }))
+    setShowBrandDetailsDialog(true)
+  }
+
   const handleBulkOutreach = async () => {
     if (selectedInfluencers.length === 0) return
+    
+    setPendingInfluencer(null)
+    setIsBulkOutreach(true)
+    // Pre-fill brand details if available from user context
+    setBrandDetails(prev => ({
+      ...prev,
+      name: user?.full_name || user?.email || '',
+      brand_location: prev.brand_location || ''
+    }))
+    setShowBrandDetailsDialog(true)
+  }
+
+  // Function to actually start the negotiation after collecting brand details
+  const proceedWithNegotiation = async () => {
+    if (!user) return
 
     setIsOutreaching(true)
     try {
-      // Mock API call for bulk outreach
-      const response = await fetch('/api/outreach/bulk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          influencer_ids: selectedInfluencers,
-          message_type: 'campaign_invitation'
-        }),
-      })
+      if (isBulkOutreach) {
+        // Handle bulk outreach
+        const selectedInfluencerProfiles = searchResults.filter(inf => 
+          selectedInfluencers.includes(inf.id) && inf.source === 'on_platform'
+        )
 
-      if (!response.ok) {
-        throw new Error('Bulk outreach failed')
+        const sessionPromises = selectedInfluencerProfiles.map(async (influencer) => {
+          return await startNegotiationSession(influencer)
+        })
+
+        const results = await Promise.allSettled(sessionPromises)
+        const successful = results.filter(result => result.status === 'fulfilled').length
+        const failed = results.filter(result => result.status === 'rejected').length
+
+        if (successful > 0) {
+          alert(`Successfully started ${successful} negotiation sessions!${failed > 0 ? ` ${failed} failed.` : ''} Check your agent chats to continue the conversations.`)
+        } else {
+          alert('Failed to start any negotiation sessions. Please try again.')
+        }
+
+        setSelectedInfluencers([])
+        setShowBulkActions(false)
+      } else if (pendingInfluencer) {
+        // Handle single contact
+        await startNegotiationSession(pendingInfluencer)
+        alert(`Successfully started negotiation session with ${pendingInfluencer.name}! Check your agent chats to continue the conversation.`)
       }
 
-      // Success notification
-      alert(`Successfully sent outreach to ${selectedInfluencers.length} influencers!`)
-      setSelectedInfluencers([])
-      setShowBulkActions(false)
+      setShowBrandDetailsDialog(false)
+      setPendingInfluencer(null)
     } catch (error: any) {
-      // For demo purposes, we'll simulate success
-      alert(`Successfully sent outreach to ${selectedInfluencers.length} influencers!`)
-      setSelectedInfluencers([])
-      setShowBulkActions(false)
+      console.error('Negotiation error:', error)
+      alert('Failed to start negotiation session(s). Please try again.')
     } finally {
       setIsOutreaching(false)
     }
@@ -204,7 +346,7 @@ export default function SearchPage() {
     setHasSearched(true)
 
     try {
-      const response = await fetch('/api/search/influencers', {
+      const response = await fetch('http://localhost:8000/api/v1/search/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -252,7 +394,7 @@ export default function SearchPage() {
     const timeoutId = setTimeout(async () => {
       if (query.length > 2) {
         try {
-          const response = await fetch(`/api/search/suggestions?query=${encodeURIComponent(query)}`)
+          const response = await fetch(`http://localhost:8000/api/v1/search/suggestions?query=${encodeURIComponent(query)}`)
           if (response.ok) {
             const suggestionsData = await response.json()
             setSuggestions(suggestionsData.slice(0, 5))
@@ -696,7 +838,11 @@ export default function SearchPage() {
 
                       {/* Action Buttons */}
                       <div className="flex gap-2">
-                        <Button className="flex-1" size="sm">
+                        <Button 
+                          className="flex-1" 
+                          size="sm"
+                          onClick={() => handleContactInfluencer(influencer)}
+                        >
                           Contact
                         </Button>
                         {influencer.profile_link ? (
@@ -830,7 +976,11 @@ export default function SearchPage() {
 
                       {/* Action Buttons */}
                       <div className="flex gap-2">
-                        <Button className="flex-1" size="sm">
+                        <Button 
+                          className="flex-1" 
+                          size="sm"
+                          onClick={() => handleContactInfluencer(influencer)}
+                        >
                           Contact
                         </Button>
                         {influencer.profile_link ? (
@@ -892,6 +1042,146 @@ export default function SearchPage() {
         </Card>
       )}
       
+      {/* Brand Details Dialog */}
+      <Dialog open={showBrandDetailsDialog} onOpenChange={setShowBrandDetailsDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {isBulkOutreach 
+                ? `Start Bulk Outreach (${selectedInfluencers.length} influencers)`
+                : `Contact ${pendingInfluencer?.name}`
+              }
+            </DialogTitle>
+            <DialogDescription>
+              Please provide your brand details to start the negotiation session.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Brand Name */}
+            <div>
+              <label className="text-sm font-medium">Brand Name *</label>
+              <Input
+                value={brandDetails.name}
+                onChange={(e) => setBrandDetails(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Your brand name"
+                className="mt-1"
+              />
+            </div>
+
+            {/* Budget */}
+            <div>
+              <label htmlFor="budget" className="text-sm font-medium">Budget ($) *</label>
+              <Input
+                id="budget"
+                type="number"
+                min="100"
+                value={brandDetails.budget}
+                onChange={(e) => setBrandDetails(prev => ({ ...prev, budget: e.target.value }))}
+                placeholder="5000"
+                className="mt-1"
+              />
+            </div>
+
+            {/* Location */}
+            <div>
+              <label htmlFor="brand-location" className="text-sm font-medium">Brand Location *</label>
+              <select
+                id="brand-location"
+                value={brandDetails.brand_location}
+                onChange={(e) => setBrandDetails(prev => ({ ...prev, brand_location: e.target.value }))}
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select location</option>
+                <option value="usa">United States</option>
+                <option value="uk">United Kingdom</option>
+                <option value="india">India</option>
+                <option value="canada">Canada</option>
+                <option value="australia">Australia</option>
+                <option value="germany">Germany</option>
+                <option value="france">France</option>
+                <option value="brazil">Brazil</option>
+                <option value="japan">Japan</option>
+                <option value="global">Global</option>
+              </select>
+            </div>
+
+            {/* Campaign Duration */}
+            <div>
+              <label htmlFor="campaign-duration" className="text-sm font-medium">Campaign Duration (days) *</label>
+              <Input
+                id="campaign-duration"
+                type="number"
+                min="1"
+                value={brandDetails.campaign_duration_days}
+                onChange={(e) => setBrandDetails(prev => ({ ...prev, campaign_duration_days: e.target.value }))}
+                placeholder="30"
+                className="mt-1"
+              />
+            </div>
+
+            {/* Target Audience */}
+            <div>
+              <label htmlFor="target-audience" className="text-sm font-medium">Target Audience *</label>
+              <Input
+                id="target-audience"
+                value={brandDetails.target_audience}
+                onChange={(e) => setBrandDetails(prev => ({ ...prev, target_audience: e.target.value }))}
+                placeholder="Tech enthusiasts aged 18-35"
+                className="mt-1"
+              />
+            </div>
+
+            {/* Brand Guidelines */}
+            <div>
+              <label htmlFor="brand-guidelines" className="text-sm font-medium">Brand Guidelines *</label>
+              <Textarea
+                id="brand-guidelines"
+                value={brandDetails.brand_guidelines}
+                onChange={(e) => setBrandDetails(prev => ({ ...prev, brand_guidelines: e.target.value }))}
+                placeholder="Professional and engaging content that showcases innovation..."
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowBrandDetailsDialog(false)}
+              disabled={isOutreaching}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={proceedWithNegotiation}
+              disabled={
+                isOutreaching || 
+                !brandDetails.name.trim() || 
+                !brandDetails.budget.trim() || 
+                !brandDetails.brand_location.trim() || 
+                !brandDetails.campaign_duration_days.trim() || 
+                !brandDetails.target_audience.trim() || 
+                !brandDetails.brand_guidelines.trim()
+              }
+            >
+              {isOutreaching ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              {isOutreaching 
+                ? 'Starting...' 
+                : isBulkOutreach 
+                  ? 'Start Bulk Outreach' 
+                  : 'Contact Influencer'
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Filter Editor Dialog */}
       <FilterEditor
         filters={extractedFilters || {}}
