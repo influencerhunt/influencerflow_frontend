@@ -93,10 +93,10 @@ function SidebarSection({ selectedSessionId, onSessionSelect }: SidebarSectionPr
   const [sessions, setSessions] = useState<NegotiationSession[]>([])
   const [loading, setLoading] = useState(false)
   if (user) {
-    user.id="123456";
+    user.id="38579c1e-9aaa-4fa7-8882-5429c9d5c221";
     user.role="brand"; // For testing purposes, set user role to 'brand'
   }else {  user= {
-    id: "123456",
+    id: "38579c1e-9aaa-4fa7-8882-5429c9d5c221",
     role: "brand",
     full_name: "Test User",
     email: ""
@@ -126,7 +126,18 @@ function SidebarSection({ selectedSessionId, onSessionSelect }: SidebarSectionPr
         // For other roles or admin, get all sessions related to the user
         userSessions = await negotiationAgentApi.getUserSessions(user.id)
       }
-      
+    //   userSessions.push(
+    //     {
+    //       session_id: "8f78e162-5816-45c4-8023-76fc6a5ebe49",
+    //       brand_name: "Tech Innovations Co",
+    //       influencer_name: "Alex TechReviewer",
+    //       brand_id: user.id,
+    //       inf_id: "65aa32cc-3514-429c-bc89-fcf0439d2d52",
+    //       status: "draft",
+    //       created_at: new Date().toISOString(),
+    //       updated_at: new Date().toISOString(),
+    //     }
+    //   )
       setSessions(userSessions)
     } catch (error) {
       console.error('Error loading sessions:', error)
